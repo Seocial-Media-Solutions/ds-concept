@@ -1,0 +1,37 @@
+name: Deploy Website
+on:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+            APP_NAME=ds-concept
+            APP_DIR=/var/www/$APP_NAME
+            GIT_REPO=https://github.com/Seocial-Media-Solutions/ds-concept.git
+            
+            if [ ! -d "$APP_DIR" ]; then
+              mkdir -p /var/www
+              cd /var/www
+              git clone $GIT_REPO $APP_NAME
+            fi
+            
+            cd $APP_DIR
+            git pull origin main
+            npm install
+            npm run build
+            pm2 delete $APP_NAME || true
+            pm2 start npm --name "$APP_NAME" -- start
+            pm2 save
+            
+            echo "✅ $APP_NAME deployed successfully"
